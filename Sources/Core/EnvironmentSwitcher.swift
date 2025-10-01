@@ -11,22 +11,22 @@ class EnvironmentSwitcher {
             throw SwitchError.environmentNotFound(environment)
         }
 
-        print("Switching to '\(environment)' environment...")
+        print("Switching to '\(environment.cyan.bold)' environment...".dim)
 
         for filePath in envConfig.files {
             try switchFile(filePath, to: environment)
         }
 
-        print("✓ Successfully switched to '\(environment)'")
+        print("\n✓ Successfully switched to '\(environment.cyan.bold)'".green)
     }
 
     func listEnvironments() throws {
         let config = try loadConfig()
 
-        print("Available environments:")
+        print("Available environments:\n".bold)
         for (name, envConfig) in config.environments.sorted(by: { $0.key < $1.key }) {
-            print("\n• \(name)")
-            print("  Files: \(envConfig.files.joined(separator: ", "))")
+            print("• \(name.cyan.bold)")
+            print("  Files: \(envConfig.files.joined(separator: ", ").dim)")
         }
     }
 
@@ -51,13 +51,13 @@ class EnvironmentSwitcher {
 
         try data.write(to: URL(fileURLWithPath: configPath))
 
-        print("✓ Created .switchrc in current directory")
-        print("\nExample configuration created with 'local', 'staging' and 'production' environments.")
-        print("Edit .switchrc to customize your environments and files.")
-        print("\nNext steps:")
-        print("1. Create environment-specific files (e.g., .env.local, .env.development, .env.production)")
-        print("2. Run 'switch --list' to see available environments")
-        print("3. Run 'switch <environment>' to switch between environments")
+        print("✓ Created .switchrc in current directory\n".green)
+        print("Example configuration created with '\("local".cyan)', '\("staging".cyan)' and '\("production".cyan)' environments.")
+        print("Edit \(".switchrc".yellow) to customize your environments and files.\n")
+        print("Next steps:".bold)
+        print("1. Create environment-specific files (e.g., \(".env.local".dim), \(".env.staging".dim), \(".env.production".dim))")
+        print("2. Run '\("switch --list".cyan)' to see available environments")
+        print("3. Run '\("switch <environment>".cyan)' to switch between environments")
     }
 
     // MARK: - Private Methods
@@ -85,7 +85,7 @@ class EnvironmentSwitcher {
         let envPath = "\(fullPath).\(environment)"
 
         guard fm.fileExists(atPath: envPath) else {
-            print("⚠ Skipping '\(filePath)': \(filePath).\(environment) not found")
+            print("⚠  Skipping '\(filePath.yellow)': \(filePath).\(environment) not found".dim)
             return
         }
 
@@ -95,10 +95,10 @@ class EnvironmentSwitcher {
             }
 
             try fm.moveItem(atPath: fullPath, toPath: backupPath)
-            print("  • Backed up: \(filePath) → \(filePath).backup")
+            print("  • Backed up: \(filePath.dim) → \("\(filePath).backup".dim)")
         }
 
         try fm.copyItem(atPath: envPath, toPath: fullPath)
-        print("  • Activated: \(filePath).\(environment) → \(filePath)")
+        print("  • Activated: \("\(filePath).\(environment)".brightCyan) → \(filePath.bold)")
     }
 }

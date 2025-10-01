@@ -32,6 +32,6 @@ do {
         try switcher.switchEnvironment(to: command)
     }
 } catch {
-    print("Error: \(error.localizedDescription)")
+    print("Error: ".red + error.localizedDescription)
     exit(1)
 }
