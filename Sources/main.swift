@@ -10,11 +10,13 @@ if args.count < 2 {
     print("""
     Usage: switch <environment>
            switch --list
-    
+       switch init
+
     Examples:
+      switch init
+      switch --list
       switch production
       switch development
-      switch --list
     """)
     exit(1)
 }
@@ -24,6 +26,8 @@ let command = args[1]
 do {
     if command == "--list" || command == "-l" {
         try switcher.listEnvironments()
+    } else if command == "init" {
+        try switcher.initializeConfig()
     } else {
         try switcher.switchEnvironment(to: command)
     }

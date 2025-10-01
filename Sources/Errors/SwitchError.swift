@@ -2,14 +2,17 @@ import Foundation
 
 enum SwitchError: Error, LocalizedError {
     case configNotFound
+    case configAlreadyExists
     case environmentNotFound(String)
     case invalidConfig
     case fileOperationFailed(String)
-    
+
     var errorDescription: String? {
         switch self {
         case .configNotFound:
             return "No .switchrc file found in current directory"
+        case .configAlreadyExists:
+            return ".switchrc already exists in current directory"
         case .environmentNotFound(let env):
             return "Environment '\(env)' not found in .switchrc"
         case .invalidConfig:
