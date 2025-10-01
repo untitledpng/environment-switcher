@@ -10,7 +10,7 @@ if args.count < 2 {
     print("""
     Usage: switch <environment>
            switch --list
-       switch init
+           switch init
 
     Examples:
       switch init
