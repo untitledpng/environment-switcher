@@ -39,6 +39,9 @@ do {
     } else if command == "config" {
         let configCommand = ConfigCommand()
         try configCommand.execute()
+    } else if command == "add" {
+        let addCommand = AddCommand()
+        try addCommand.execute()
     } else {
         let switchCommand = SwitchCommand()
         try switchCommand.execute(environment: command)

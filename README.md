@@ -38,15 +38,21 @@ brew install untitledpng/tap/environment-switcher
    switch --list
    ```
 
-4. **Switch to an environment (example)**:
+4. **Switch to an environment**:
    ```bash
    switch production
+   ```
+
+5. **Add new environments as needed**:
+   ```bash
+   switch add
    ```
 
 ## 📖 Usage
 
 ```bash
 switch init          # Create .switchrc configuration file in current directory
+switch add           # Add a new environment to existing .switchrc
 switch config        # Create/update global configuration
 switch --list        # List available environments
 switch <env>         # Switch to specified environment
@@ -104,6 +110,21 @@ Customize default behaviors across all projects:
 ```
 
 Run `switch config` to create or update your global configuration.
+
+### Adding New Environments
+
+Use `switch add` to add new environments to an existing `.switchrc`:
+
+- If your config uses default files, you can choose to use them or specify custom files
+- If your config doesn't have default files, you'll be prompted to specify files
+- Global config defaults are used as suggestions when specifying custom files
+
+**Example:**
+```bash
+switch add
+# Enter environment name: staging
+# Use default files? y
+```
 
 ### How It Works
 
