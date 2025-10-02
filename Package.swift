@@ -14,6 +14,9 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "EnvironmentSwitcher",
-            path: "Sources")
+            path: "Sources"),
+        .testTarget(
+            name: "EnvironmentSwitcherTests",
+            dependencies: ["EnvironmentSwitcher"])
     ]
 )
