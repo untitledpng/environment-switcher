@@ -180,13 +180,86 @@ class EnvironmentSwitcher {
 
         try data.write(to: URL(fileURLWithPath: configPath))
 
-        print("\n✅ Created .switchrc in current directory\n".green)
+        print("\n ⏺ Created .switchrc in current directory\n".green)
         print("Configuration created with environments: \(environments.map { $0.cyan }.joined(separator: ", "))")
         print("Files to switch: \(files.map { $0.yellow }.joined(separator: ", "))\n")
-        print("Next steps:".bold)
+
+        // Handle .gitignore
+        try handleGitignoreUpdate(files: files)
+
+        print("\nNext steps:".bold)
         print("1. Create environment-specific files (e.g., \(files.map { "\($0).\(environments[0])".dim }.joined(separator: ", ")))")
         print("2. Run '\("switch --list".cyan)' to see available environments")
         print("3. Run '\("switch <environment>".cyan)' to switch between environments")
+    }
+
+    private func handleGitignoreUpdate(files: [String]) throws {
+        let gitignorePath = "\(currentDir)/.gitignore"
+        let gitignoreExists = fm.fileExists(atPath: gitignorePath)
+
+        let prompt = gitignoreExists
+            ? "\nDo you want to update your .gitignore with these files? (y/n, default: \("y".dim))"
+            : "\n.gitignore doesn't exist. Do you want to create it? (y/n, default: \("y".dim))"
+
+        print(prompt)
+        print("> ".cyan, terminator: "")
+
+        let response = readLine() ?? ""
+        let shouldUpdate = response.trimmingCharacters(in: .whitespaces).isEmpty
+            || response.trimmingCharacters(in: .whitespaces).lowercased() == "y"
+
+        guard shouldUpdate else {
+            return
+        }
+
+        var gitignoreContent = ""
+
+        // Read existing content if file exists
+        if gitignoreExists {
+            gitignoreContent = try String(contentsOf: URL(fileURLWithPath: gitignorePath), encoding: .utf8)
+        }
+
+        // Prepare entries to add
+        var entriesToAdd: [String] = []
+
+        // Add .switchrc if not already present
+        if !gitignoreContent.contains(".switchrc") {
+            entriesToAdd.append(".switchrc")
+        }
+
+        // Add file patterns (file.*)
+        for file in files {
+            let pattern = "\(file).*"
+            if !gitignoreContent.contains(pattern) {
+                entriesToAdd.append(pattern)
+            }
+        }
+
+        guard !entriesToAdd.isEmpty else {
+            print("✓ .gitignore already contains all necessary entries".dim)
+            return
+        }
+
+        // Ensure file ends with newline before appending
+        if gitignoreExists && !gitignoreContent.isEmpty && !gitignoreContent.hasSuffix("\n") {
+            gitignoreContent += "\n"
+        }
+
+        // Add a section header if we're adding entries
+        if !gitignoreContent.isEmpty {
+            gitignoreContent += "\n# Environment Switcher\n"
+        } else {
+            gitignoreContent = "# Environment Switcher\n"
+        }
+
+        gitignoreContent += entriesToAdd.joined(separator: "\n")
+        gitignoreContent += "\n"
+
+        // Write to file
+        try gitignoreContent.write(to: URL(fileURLWithPath: gitignorePath), atomically: true, encoding: .utf8)
+
+        let action = gitignoreExists ? "Updated" : "Created"
+        print(" ⏺ \(action) .gitignore with entries: \(entriesToAdd.map { $0.yellow }.joined(separator: ", "))".green)
     }
 
     // MARK: - Private Methods
