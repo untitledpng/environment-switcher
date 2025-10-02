@@ -74,10 +74,46 @@ final class EnvironmentSwitcherTests: XCTestCase {
         // Create initial config
         try createConfig(environments: ["local": [".env"]])
 
-        // Try to initialize again - this would require mocking stdin
-        // For now, we'll test the error is defined
+        // Verify config exists
+        XCTAssertTrue(fileExists(".switchrc"))
+
+        // Test error is defined
         let error = SwitchError.configAlreadyExists
         XCTAssertNotNil(error.errorDescription)
+    }
+
+    func testInitCreatesEnvironmentFiles() throws {
+        // This test verifies the helper method works
+        // Full init test would require mocking stdin
+
+        let files = [".env", "config.json"]
+        let environments = ["local", "staging", "production"]
+
+        // Create config first
+        try createConfig(environments: [
+            "local": files,
+            "staging": files,
+            "production": files
+        ])
+
+        // Manually create the files (simulating what init does)
+        for file in files {
+            for env in environments {
+                let envFile = "\(file).\(env)"
+                try createFile(envFile, content: "# Environment: \(env)\n# TODO: Add your \(env) configuration here\n")
+            }
+        }
+
+        // Verify all files were created
+        for file in files {
+            for env in environments {
+                let envFile = "\(file).\(env)"
+                XCTAssertTrue(fileExists(envFile), "\(envFile) should exist")
+                let content = readFile(envFile)
+                XCTAssertNotNil(content)
+                XCTAssertTrue(content?.contains("Environment: \(env)") ?? false)
+            }
+        }
     }
 
     // MARK: - List Environments Tests

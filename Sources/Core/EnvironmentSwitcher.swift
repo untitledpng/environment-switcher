@@ -187,8 +187,11 @@ class EnvironmentSwitcher {
         // Handle .gitignore
         try handleGitignoreUpdate(files: files)
 
+        // Handle environment file creation
+        try handleEnvironmentFileCreation(files: files, environments: environments)
+
         print("\nNext steps:".bold)
-        print("1. Create environment-specific files (e.g., \(files.map { "\($0).\(environments[0])".dim }.joined(separator: ", ")))")
+        print("1. Edit your environment-specific files with the appropriate configuration")
         print("2. Run '\("switch --list".cyan)' to see available environments")
         print("3. Run '\("switch <environment>".cyan)' to switch between environments")
     }
@@ -260,6 +263,52 @@ class EnvironmentSwitcher {
 
         let action = gitignoreExists ? "Updated" : "Created"
         print(" ⏺ \(action) .gitignore with entries: \(entriesToAdd.map { $0.yellow }.joined(separator: ", "))".green)
+    }
+
+    private func handleEnvironmentFileCreation(files: [String], environments: [String]) throws {
+        print("\nDo you want to create all environment-specific files? (y/n, default: \("y".dim))")
+        print("> ".cyan, terminator: "")
+
+        let response = readLine() ?? ""
+        let shouldCreate = response.trimmingCharacters(in: .whitespaces).isEmpty
+            || response.trimmingCharacters(in: .whitespaces).lowercased() == "y"
+
+        guard shouldCreate else {
+            return
+        }
+
+        var createdFiles: [String] = []
+        var skippedFiles: [String] = []
+
+        for file in files {
+            for env in environments {
+                let envFilePath = "\(currentDir)/\(file).\(env)"
+
+                if fm.fileExists(atPath: envFilePath) {
+                    skippedFiles.append("\(file).\(env)")
+                    continue
+                }
+
+                // Create empty file with a comment
+                let content = "# Environment: \(env)\n# TODO: Add your \(env) configuration here\n"
+                try content.write(to: URL(fileURLWithPath: envFilePath), atomically: true, encoding: .utf8)
+                createdFiles.append("\(file).\(env)")
+            }
+        }
+
+        if !createdFiles.isEmpty {
+            print("\n ⏺ Created \(createdFiles.count) environment file(s):".green)
+            for file in createdFiles {
+                print("   • \(file.yellow)")
+            }
+        }
+
+        if !skippedFiles.isEmpty {
+            print("\n ⏺ Skipped \(skippedFiles.count) existing file(s):".dim)
+            for file in skippedFiles {
+                print("   • \(file)")
+            }
+        }
     }
 
     // MARK: - Private Methods
