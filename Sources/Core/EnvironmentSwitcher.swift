@@ -126,25 +126,65 @@ class EnvironmentSwitcher {
             throw SwitchError.configAlreadyExists
         }
 
-        let exampleConfig = SwitchConfig(
-            environments: [
-                "local": EnvironmentConfig(files: [".env"]),
-                "staging": EnvironmentConfig(files: [".env"]),
-                "production": EnvironmentConfig(files: [".env"])
-            ]
-        )
+        print("Let's set up your environment switcher configuration.\n".bold)
+
+        // Prompt for environments
+        print("Which environments do you want to add?")
+        print("(comma-separated, default: \("local,staging,production".dim))")
+        print("> ".cyan, terminator: "")
+
+        let environmentsInput = readLine() ?? ""
+        let environmentsString = environmentsInput.trimmingCharacters(in: .whitespaces).isEmpty
+            ? "local,staging,production"
+            : environmentsInput.trimmingCharacters(in: .whitespaces)
+
+        let environments = environmentsString
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+
+        guard !environments.isEmpty else {
+            throw SwitchError.custom("No environments specified")
+        }
+
+        // Prompt for files
+        print("\nWhich files should be switched?")
+        print("(comma-separated, default: \(".env".dim))")
+        print("> ".cyan, terminator: "")
+
+        let filesInput = readLine() ?? ""
+        let filesString = filesInput.trimmingCharacters(in: .whitespaces).isEmpty
+            ? ".env"
+            : filesInput.trimmingCharacters(in: .whitespaces)
+
+        let files = filesString
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+
+        guard !files.isEmpty else {
+            throw SwitchError.custom("No files specified")
+        }
+
+        // Build config
+        var envConfigs: [String: EnvironmentConfig] = [:]
+        for env in environments {
+            envConfigs[env] = EnvironmentConfig(files: files)
+        }
+
+        let config = SwitchConfig(environments: envConfigs)
 
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(exampleConfig)
+        let data = try encoder.encode(config)
 
         try data.write(to: URL(fileURLWithPath: configPath))
 
-        print("✅ Created .switchrc in current directory\n".green)
-        print("Example configuration created with '\("local".cyan)', '\("staging".cyan)' and '\("production".cyan)' environments.")
-        print("Edit \(".switchrc".yellow) to customize your environments and files.\n")
+        print("\n✅ Created .switchrc in current directory\n".green)
+        print("Configuration created with environments: \(environments.map { $0.cyan }.joined(separator: ", "))")
+        print("Files to switch: \(files.map { $0.yellow }.joined(separator: ", "))\n")
         print("Next steps:".bold)
-        print("1. Create environment-specific files (e.g., \(".env.local".dim), \(".env.staging".dim), \(".env.production".dim))")
+        print("1. Create environment-specific files (e.g., \(files.map { "\($0).\(environments[0])".dim }.joined(separator: ", ")))")
         print("2. Run '\("switch --list".cyan)' to see available environments")
         print("3. Run '\("switch <environment>".cyan)' to switch between environments")
     }

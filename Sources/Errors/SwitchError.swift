@@ -6,6 +6,7 @@ enum SwitchError: Error, LocalizedError {
     case environmentNotFound(String)
     case invalidConfig
     case fileOperationFailed(String)
+    case custom(String)
 
     var errorDescription: String? {
         switch self {
@@ -19,6 +20,8 @@ enum SwitchError: Error, LocalizedError {
             return "Invalid \(".switchrc".yellow) format. Please check your JSON syntax."
         case .fileOperationFailed(let msg):
             return "File operation failed: \(msg)"
+        case .custom(let msg):
+            return msg
         }
     }
 }
