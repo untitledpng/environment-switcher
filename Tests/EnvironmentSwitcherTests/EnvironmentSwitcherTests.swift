@@ -4,10 +4,13 @@ import Foundation
 
 final class EnvironmentSwitcherTests: XCTestCase {
     var testDir: String!
-    var switcher: EnvironmentSwitcher!
+    var originalDir: String!
 
     override func setUp() {
         super.setUp()
+
+        // Save original directory
+        originalDir = FileManager.default.currentDirectoryPath
 
         // Create a temporary test directory
         testDir = NSTemporaryDirectory() + "switch-test-\(UUID().uuidString)"
@@ -15,11 +18,12 @@ final class EnvironmentSwitcherTests: XCTestCase {
 
         // Change to test directory
         FileManager.default.changeCurrentDirectoryPath(testDir)
-
-        switcher = EnvironmentSwitcher()
     }
 
     override func tearDown() {
+        // Restore original directory
+        FileManager.default.changeCurrentDirectoryPath(originalDir)
+
         // Clean up test directory
         var isDir: ObjCBool = false
         if FileManager.default.fileExists(atPath: testDir, isDirectory: &isDir) {
@@ -31,12 +35,12 @@ final class EnvironmentSwitcherTests: XCTestCase {
 
     // MARK: - Helper Methods
 
-    func createConfig(environments: [String: [String]]) throws {
+    func createConfig(environments: [String: [String]], defaultFiles: [String]? = nil) throws {
         var envConfigs: [String: EnvironmentConfig] = [:]
         for (name, files) in environments {
-            envConfigs[name] = EnvironmentConfig(files: files)
+            envConfigs[name] = EnvironmentConfig(files: files.isEmpty ? [] : files)
         }
-        let config = SwitchConfig(environments: envConfigs)
+        let config = SwitchConfig(environments: envConfigs, currentEnvironment: nil, files: defaultFiles)
 
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -60,7 +64,8 @@ final class EnvironmentSwitcherTests: XCTestCase {
     // MARK: - Config Tests
 
     func testConfigNotFound() {
-        XCTAssertThrowsError(try switcher.listEnvironments()) { error in
+        let listCommand = ListCommand()
+        XCTAssertThrowsError(try listCommand.execute()) { error in
             XCTAssertTrue(error is SwitchError)
             if case .configNotFound = error as? SwitchError {
                 // Success
@@ -125,8 +130,9 @@ final class EnvironmentSwitcherTests: XCTestCase {
             "production": [".env"]
         ])
 
+        let listCommand = ListCommand()
         // This will print to stdout, but shouldn't throw
-        XCTAssertNoThrow(try switcher.listEnvironments())
+        XCTAssertNoThrow(try listCommand.execute())
     }
 
     func testListEnvironmentsWithMultipleFiles() throws {
@@ -135,7 +141,8 @@ final class EnvironmentSwitcherTests: XCTestCase {
             "production": [".env", "config.json"]
         ])
 
-        XCTAssertNoThrow(try switcher.listEnvironments())
+        let listCommand = ListCommand()
+        XCTAssertNoThrow(try listCommand.execute())
     }
 
     // MARK: - Switch Environment Tests
@@ -151,7 +158,8 @@ final class EnvironmentSwitcherTests: XCTestCase {
         try createFile(".env.production", content: "ENV=production")
 
         // Switch to production
-        XCTAssertNoThrow(try switcher.switchEnvironment(to: "production"))
+        let switchCommand = SwitchCommand()
+        XCTAssertNoThrow(try switchCommand.execute(environment: "production"))
 
         // Verify
         XCTAssertTrue(fileExists(".env"))
@@ -171,7 +179,8 @@ final class EnvironmentSwitcherTests: XCTestCase {
         try createFile(".env.production", content: "ENV=production")
 
         // Switch to production
-        XCTAssertNoThrow(try switcher.switchEnvironment(to: "production"))
+        let switchCommand = SwitchCommand()
+        XCTAssertNoThrow(try switchCommand.execute(environment: "production"))
 
         // Verify
         XCTAssertTrue(fileExists(".env"))
@@ -185,7 +194,8 @@ final class EnvironmentSwitcherTests: XCTestCase {
             "local": [".env"]
         ])
 
-        XCTAssertThrowsError(try switcher.switchEnvironment(to: "nonexistent")) { error in
+        let switchCommand = SwitchCommand()
+        XCTAssertThrowsError(try switchCommand.execute(environment: "nonexistent")) { error in
             XCTAssertTrue(error is SwitchError)
             if case .environmentNotFound(let env) = error as? SwitchError {
                 XCTAssertEqual(env, "nonexistent")
@@ -202,7 +212,8 @@ final class EnvironmentSwitcherTests: XCTestCase {
         ])
 
         // Should not throw, but should report no files switched
-        XCTAssertNoThrow(try switcher.switchEnvironment(to: "production"))
+        let switchCommand = SwitchCommand()
+        XCTAssertNoThrow(try switchCommand.execute(environment: "production"))
 
         // .env should not exist
         XCTAssertFalse(fileExists(".env"))
@@ -221,7 +232,8 @@ final class EnvironmentSwitcherTests: XCTestCase {
         try createFile("config.json.production", content: "{\"env\":\"production\"}")
 
         // Switch to production
-        XCTAssertNoThrow(try switcher.switchEnvironment(to: "production"))
+        let switchCommand = SwitchCommand()
+        XCTAssertNoThrow(try switchCommand.execute(environment: "production"))
 
         // Verify both files switched
         XCTAssertEqual(readFile(".env"), "ENV=production")
@@ -238,7 +250,8 @@ final class EnvironmentSwitcherTests: XCTestCase {
         // config.json.production doesn't exist
 
         // Should not throw, but only .env should be switched
-        XCTAssertNoThrow(try switcher.switchEnvironment(to: "production"))
+        let switchCommand = SwitchCommand()
+        XCTAssertNoThrow(try switchCommand.execute(environment: "production"))
 
         XCTAssertTrue(fileExists(".env"))
         XCTAssertFalse(fileExists("config.json"))
@@ -257,7 +270,8 @@ final class EnvironmentSwitcherTests: XCTestCase {
         try createFile(".env", content: "ENV=production")
 
         // Should show production as current
-        XCTAssertNoThrow(try switcher.showCurrentEnvironment())
+        let showCommand = ShowCommand()
+        XCTAssertNoThrow(try showCommand.execute())
     }
 
     func testShowCurrentEnvironmentUnknown() throws {
@@ -272,7 +286,8 @@ final class EnvironmentSwitcherTests: XCTestCase {
         try createFile(".env", content: "ENV=unknown")
 
         // Should show unknown
-        XCTAssertNoThrow(try switcher.showCurrentEnvironment())
+        let showCommand = ShowCommand()
+        XCTAssertNoThrow(try showCommand.execute())
     }
 
     func testShowCurrentEnvironmentModified() throws {
@@ -287,7 +302,8 @@ final class EnvironmentSwitcherTests: XCTestCase {
         try createFile("config.json", content: "{\"env\":\"modified\"}")
 
         // Should show production as modified
-        XCTAssertNoThrow(try switcher.showCurrentEnvironment())
+        let showCommand = ShowCommand()
+        XCTAssertNoThrow(try showCommand.execute())
     }
 
     // MARK: - Error Cases
@@ -296,7 +312,8 @@ final class EnvironmentSwitcherTests: XCTestCase {
         // Create invalid JSON
         try "invalid json{".write(toFile: "\(testDir!)/.switchrc", atomically: true, encoding: .utf8)
 
-        XCTAssertThrowsError(try switcher.listEnvironments()) { error in
+        let listCommand = ListCommand()
+        XCTAssertThrowsError(try listCommand.execute()) { error in
             XCTAssertTrue(error is SwitchError)
             if case .invalidConfig = error as? SwitchError {
                 // Success
@@ -309,8 +326,9 @@ final class EnvironmentSwitcherTests: XCTestCase {
     func testEmptyEnvironments() throws {
         try createConfig(environments: [:])
 
+        let listCommand = ListCommand()
         // Should list environments (empty list)
-        XCTAssertNoThrow(try switcher.listEnvironments())
+        XCTAssertNoThrow(try listCommand.execute())
     }
 
     func testEnvironmentWithNoFiles() throws {
@@ -318,8 +336,11 @@ final class EnvironmentSwitcherTests: XCTestCase {
             "local": []
         ])
 
-        // Should switch but report no files
-        XCTAssertNoThrow(try switcher.switchEnvironment(to: "local"))
+        // Should throw error when no default files and environment has empty files
+        let switchCommand = SwitchCommand()
+        XCTAssertThrowsError(try switchCommand.execute(environment: "local")) { error in
+            XCTAssertTrue(error is SwitchError)
+        }
     }
 
     // MARK: - Edge Cases
@@ -336,7 +357,8 @@ final class EnvironmentSwitcherTests: XCTestCase {
         try createFile(".env.production", content: "ENV=production")
 
         // Switch - should overwrite old backup
-        XCTAssertNoThrow(try switcher.switchEnvironment(to: "production"))
+        let switchCommand = SwitchCommand()
+        XCTAssertNoThrow(try switchCommand.execute(environment: "production"))
 
         XCTAssertEqual(readFile(".env"), "ENV=production")
         XCTAssertEqual(readFile(".env.backup"), "ENV=current")
@@ -352,7 +374,8 @@ final class EnvironmentSwitcherTests: XCTestCase {
         try createFile(".env", content: "ENV=production")
 
         // Switch to same environment
-        XCTAssertNoThrow(try switcher.switchEnvironment(to: "production"))
+        let switchCommand = SwitchCommand()
+        XCTAssertNoThrow(try switchCommand.execute(environment: "production"))
 
         // Should still work and create backup
         XCTAssertTrue(fileExists(".env.backup"))
@@ -367,7 +390,8 @@ final class EnvironmentSwitcherTests: XCTestCase {
         try createFile(".env-dev.local", content: "ENV=local")
         try createFile("config.test.json.local", content: "{}")
 
-        XCTAssertNoThrow(try switcher.switchEnvironment(to: "local"))
+        let switchCommand = SwitchCommand()
+        XCTAssertNoThrow(try switchCommand.execute(environment: "local"))
 
         XCTAssertTrue(fileExists(".env-dev"))
         XCTAssertTrue(fileExists("config.test.json"))
@@ -384,12 +408,14 @@ final class EnvironmentSwitcherTests: XCTestCase {
         try createFile(".env.prod", content: "ENV=prod")
 
         // Switch to dev
-        XCTAssertNoThrow(try switcher.switchEnvironment(to: "dev"))
+        let switchCommand1 = SwitchCommand()
+        XCTAssertNoThrow(try switchCommand1.execute(environment: "dev"))
         XCTAssertEqual(readFile(".env"), "ENV=dev")
         XCTAssertEqual(readFile("api.json"), "{\"env\":\"dev\"}")
 
         // Switch to prod (only has .env)
-        XCTAssertNoThrow(try switcher.switchEnvironment(to: "prod"))
+        let switchCommand2 = SwitchCommand()
+        XCTAssertNoThrow(try switchCommand2.execute(environment: "prod"))
         XCTAssertEqual(readFile(".env"), "ENV=prod")
     }
 }
