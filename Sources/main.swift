@@ -42,6 +42,9 @@ do {
     } else if command == "add" {
         let addCommand = AddCommand()
         try addCommand.execute()
+    } else if command == "remove" || command == "rm" {
+        let removeCommand = RemoveCommand()
+        try removeCommand.execute()
     } else {
         let switchCommand = SwitchCommand()
         try switchCommand.execute(environment: command)

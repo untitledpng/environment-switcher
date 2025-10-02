@@ -53,6 +53,7 @@ brew install untitledpng/tap/environment-switcher
 ```bash
 switch init          # Create .switchrc configuration file in current directory
 switch add           # Add a new environment to existing .switchrc
+switch remove        # Remove an environment from .switchrc
 switch config        # Create/update global configuration
 switch --list        # List available environments
 switch <env>         # Switch to specified environment
@@ -124,6 +125,21 @@ Use `switch add` to add new environments to an existing `.switchrc`:
 switch add
 # Enter environment name: staging
 # Use default files? y
+```
+
+### Removing Environments
+
+Use `switch remove` (or `switch rm`) to remove environments from `.switchrc`:
+
+- Shows a list of available environments
+- Prompts for confirmation before deletion
+- Automatically clears `currentEnvironment` if it was the removed one
+
+**Example:**
+```bash
+switch remove
+# Enter environment name: staging
+# Are you sure? y
 ```
 
 ### How It Works

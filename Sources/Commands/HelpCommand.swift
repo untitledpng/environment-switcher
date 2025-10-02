@@ -10,10 +10,12 @@ class HelpCommand {
                switch init
                switch config
                switch add
+               switch remove
 
         Commands:
                init                 Create a new .switchrc configuration file in current directory
                add                  Add a new environment to existing .switchrc
+               remove, rm           Remove an environment from .switchrc
                config               Create or view global configuration file
                --list, -l           List all available environments
                --help, -h           Show this help message
@@ -22,6 +24,7 @@ class HelpCommand {
         Examples:
                switch init          Initialize a new project
                switch add           Add a new environment
+               switch remove        Remove an environment
                switch config        Setup global configuration
                switch --list        List environments
                switch production    Switch to production environment
