@@ -10,6 +10,8 @@ A lightweight CLI tool for seamlessly switching between different environment co
 - 🎯 Support for multiple files per environment
 - 💡 Simple and intuitive CLI
 - 👨‍💻 Interactive init command to create `.switchrc` file and update your .gitignore
+- 🌍 Global configuration for customizing default behaviors
+- 📋 Default files mode - define files once, share across environments
 
 ## 📦 Installation
 
@@ -44,16 +46,32 @@ brew install untitledpng/tap/environment-switcher
 ## 📖 Usage
 
 ```bash
-switch init          # Create example .switchrc file
+switch init          # Create .switchrc configuration file in current directory
+switch config        # Create/update global configuration
 switch --list        # List available environments
 switch <env>         # Switch to specified environment
+switch --help        # Show help information
 ```
 
 ## ⚙️ Configuration
 
-The `.switchrc` file defines your environments and which files to switch. Environments are **completely dynamic** — you define them based on your project's needs.
+### Project Configuration (`.switchrc`)
 
-**Example `.switchrc`:**
+The `.switchrc` file in your project directory defines your environments and which files to switch. Environments are **completely dynamic** — you define them based on your project's needs.
+
+**Example with default files (recommended):**
+```json
+{
+  "files": [".env", "config.json"],
+  "environments": {
+    "local": { "files": [] },
+    "staging": { "files": [] },
+    "production": { "files": [] }
+  }
+}
+```
+
+**Example with per-environment files:**
 ```json
 {
   "environments": {
@@ -64,7 +82,7 @@ The `.switchrc` file defines your environments and which files to switch. Enviro
       "files": [".env"]
     },
     "production": {
-      "files": [".env"]
+      "files": [".env", "credentials.json"]
     }
   }
 }
@@ -72,12 +90,28 @@ The `.switchrc` file defines your environments and which files to switch. Enviro
 
 > 💡 **Note:** Environment names like "local", "staging", and "production" are just examples. You can create any custom environments that match your workflow (e.g., "dev", "test", "demo", "client-a", etc.).
 
+### Global Configuration (`~/.config/switch/.switchrc`)
+
+Customize default behaviors across all projects:
+
+```json
+{
+  "initDefaults": {
+    "environments": ["dev", "test", "prod"],
+    "files": [".env", "config.yml"]
+  }
+}
+```
+
+Run `switch config` to create or update your global configuration.
+
 ### How It Works
 
 When you run `switch production`:
 1. Backs up current files (e.g., `.env` → `.env.backup`)
 2. Copies environment-specific files (e.g., `.env.production` → `.env`)
-3. Your application now uses the production configuration!
+3. Tracks the current environment in `.switchrc`
+4. Your application now uses the production configuration!
 
 ## 🔄 Updating
 

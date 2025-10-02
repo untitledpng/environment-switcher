@@ -36,6 +36,9 @@ do {
     } else if command == "init" {
         let initCommand = InitCommand()
         try initCommand.execute()
+    } else if command == "config" {
+        let configCommand = ConfigCommand()
+        try configCommand.execute()
     } else {
         let switchCommand = SwitchCommand()
         try switchCommand.execute(environment: command)

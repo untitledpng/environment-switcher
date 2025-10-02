@@ -13,14 +13,19 @@ class InitCommand {
 
         print("Let's set up your environment switcher configuration.\n".bold)
 
+        // Load global config defaults
+        let globalConfig = GlobalConfig.shared
+        let defaultEnvironments = globalConfig.initDefaults?.environments ?? ["local", "staging", "production"]
+        let defaultFiles = globalConfig.initDefaults?.files ?? [".env"]
+
         // Prompt for environments
         print("Which environments do you want to add?")
-        print("(comma-separated, default: \("local,staging,production".dim))")
+        print("(comma-separated, default: \(defaultEnvironments.joined(separator: ",").dim))")
         print("> ".cyan, terminator: "")
 
         let environmentsInput = readLine() ?? ""
         let environmentsString = environmentsInput.trimmingCharacters(in: .whitespaces).isEmpty
-            ? "local,staging,production"
+            ? defaultEnvironments.joined(separator: ",")
             : environmentsInput.trimmingCharacters(in: .whitespaces)
 
         let environments = environmentsString
@@ -34,12 +39,12 @@ class InitCommand {
 
         // Prompt for files
         print("\nWhich files should be switched?")
-        print("(comma-separated, default: \(".env".dim))")
+        print("(comma-separated, default: \(defaultFiles.joined(separator: ",").dim))")
         print("> ".cyan, terminator: "")
 
         let filesInput = readLine() ?? ""
         let filesString = filesInput.trimmingCharacters(in: .whitespaces).isEmpty
-            ? ".env"
+            ? defaultFiles.joined(separator: ",")
             : filesInput.trimmingCharacters(in: .whitespaces)
 
         let files = filesString
