@@ -8,9 +8,15 @@ class ListCommand {
         let config = try loadConfig()
 
         print("Available environments:\n".bold)
-        for (name, envConfig) in config.environments.sorted(by: { $0.key < $1.key }) {
+
+        if let files = config.files {
+            print("Default files: \(files.joined(separator: ", ").dim)\n")
+        }
+
+        for (name, _) in config.environments.sorted(by: { $0.key < $1.key }) {
+            let files = config.getFiles(for: name)
             print("• \(name.cyan.bold)")
-            print("  Files: \(envConfig.files.joined(separator: ", ").dim)")
+            print("  Files: \(files.joined(separator: ", ").dim)")
         }
     }
 

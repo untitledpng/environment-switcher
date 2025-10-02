@@ -7,20 +7,27 @@ class SwitchCommand {
     func execute(environment: String) throws {
         let config = try loadConfig()
 
-        guard let envConfig = config.environments[environment] else {
+        guard config.environments[environment] != nil else {
             throw SwitchError.environmentNotFound(environment)
+        }
+
+        let files = config.getFiles(for: environment)
+
+        if files.isEmpty && (config.files == nil || config.files?.isEmpty == true) {
+            throw SwitchError.custom("No files configured for environment '\(environment)'")
         }
 
         print("\("Switching to '".bold)\(environment.cyan.bold)\("' environment...".bold)")
 
         var successCount = 0
-        for filePath in envConfig.files {
+        for filePath in files {
             if try switchFile(filePath, to: environment) {
                 successCount += 1
             }
         }
 
         if successCount > 0 {
+            try updateConfigWithCurrentEnvironment(environment)
             print("\n ⏺ Successfully switched to '\(environment.cyan.bold)'".green)
         } else {
             print("\n ⏺ No files were switched. Please ensure environment-specific files exist.".red)
@@ -44,6 +51,17 @@ class SwitchCommand {
         } catch {
             throw SwitchError.invalidConfig
         }
+    }
+
+    private func updateConfigWithCurrentEnvironment(_ environment: String) throws {
+        let configPath = "\(currentDir)/.switchrc"
+        var config = try loadConfig()
+        config.currentEnvironment = environment
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(config)
+        try data.write(to: URL(fileURLWithPath: configPath))
     }
 
     private func switchFile(_ filePath: String, to environment: String) throws -> Bool {

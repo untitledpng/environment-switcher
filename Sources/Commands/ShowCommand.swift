@@ -4,40 +4,45 @@ class ShowCommand {
     let fm = FileManager.default
     let currentDir = FileManager.default.currentDirectoryPath
 
-    enum EnvironmentStatus {
-        case matched(String, [String])
-        case modified(String, [String], [String])
-        case unknown
-    }
-
     func execute() throws {
         let config = try loadConfig()
-        let current = try detectCurrentEnvironment(config: config)
 
         print("Current environment: ".bold, terminator: "")
 
-        switch current {
-        case .matched(let envName, let allFiles):
-            print(envName.cyan.bold)
-            for file in allFiles {
-                print("  ⎿  \(file)")
+        if let currentEnv = config.currentEnvironment {
+            if config.environments[currentEnv] != nil {
+                let files = config.getFiles(for: currentEnv)
+                let (matchedFiles, modifiedFiles) = try checkEnvironmentFiles(currentEnv, files)
+
+                if modifiedFiles.isEmpty {
+                    print(currentEnv.cyan.bold)
+                } else {
+                    print("\(currentEnv.yellow.bold) (modified)".yellow)
+                }
+
+                for file in matchedFiles {
+                    print("  ⎿  \(file)")
+                }
+                for file in modifiedFiles {
+                    print("  ⎿  \("\(file) (modified)".brightYellow)")
+                }
+            } else {
+                print("\(currentEnv.red.bold) (not found in config)".red)
             }
-        case .modified(let envName, let matchedFiles, let modifiedFiles):
-            print("\(envName.yellow.bold) (modified)".yellow)
-            for file in matchedFiles {
-                print("  ⎿  \(file)")
-            }
-            for file in modifiedFiles {
-                print("  ⎿  \("\(file) (modified)".brightYellow)")
-            }
-        case .unknown:
-            print("unknown".dim)
+        } else {
+            print("none".dim)
         }
 
         print("\nAvailable environments:".bold)
-        for (name, envConfig) in config.environments.sorted(by: { $0.key < $1.key }) {
+
+        if let files = config.files {
+            print("Default files: \(files.joined(separator: ", ").dim)\n")
+        }
+
+        for (name, _) in config.environments.sorted(by: { $0.key < $1.key }) {
+            let files = config.getFiles(for: name)
             print(" • \(name.cyan.bold)")
-            print("  ⎿  Files: \(envConfig.files.joined(separator: ", ").dim)")
+            print("  ⎿  Files: \(files.joined(separator: ", ").dim)")
         }
     }
 
@@ -60,43 +65,26 @@ class ShowCommand {
         }
     }
 
-    private func detectCurrentEnvironment(config: SwitchConfig) throws -> EnvironmentStatus {
-        var bestMatch: (name: String, matchCount: Int, totalFiles: Int, matchedFiles: [String], modifiedFiles: [String]) = ("", 0, 0, [], [])
+    private func checkEnvironmentFiles(_ envName: String, _ files: [String]) throws -> ([String], [String]) {
+        var matchedFiles: [String] = []
+        var modifiedFiles: [String] = []
 
-        for (envName, envConfig) in config.environments {
-            var matchCount = 0
-            var matchedFiles: [String] = []
-            var modifiedFiles: [String] = []
-            let totalFiles = envConfig.files.count
+        for filePath in files {
+            let fullPath = "\(currentDir)/\(filePath)"
+            let envPath = "\(fullPath).\(envName)"
 
-            for filePath in envConfig.files {
-                let fullPath = "\(currentDir)/\(filePath)"
-                let envPath = "\(fullPath).\(envName)"
-
-                guard fm.fileExists(atPath: fullPath), fm.fileExists(atPath: envPath) else {
-                    continue
-                }
-
-                if try filesAreIdentical(fullPath, envPath) {
-                    matchCount += 1
-                    matchedFiles.append(filePath)
-                } else {
-                    modifiedFiles.append(filePath)
-                }
+            guard fm.fileExists(atPath: fullPath), fm.fileExists(atPath: envPath) else {
+                continue
             }
 
-            if matchCount > bestMatch.matchCount {
-                bestMatch = (envName, matchCount, totalFiles, matchedFiles, modifiedFiles)
+            if try filesAreIdentical(fullPath, envPath) {
+                matchedFiles.append(filePath)
+            } else {
+                modifiedFiles.append(filePath)
             }
         }
 
-        if bestMatch.matchCount == 0 {
-            return .unknown
-        } else if bestMatch.matchCount == bestMatch.totalFiles {
-            return .matched(bestMatch.name, bestMatch.matchedFiles)
-        } else {
-            return .modified(bestMatch.name, bestMatch.matchedFiles, bestMatch.modifiedFiles)
-        }
+        return (matchedFiles, modifiedFiles)
     }
 
     private func filesAreIdentical(_ path1: String, _ path2: String) throws -> Bool {
@@ -104,4 +92,5 @@ class ShowCommand {
         let data2 = try Data(contentsOf: URL(fileURLWithPath: path2))
         return data1 == data2
     }
+
 }

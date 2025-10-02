@@ -6,6 +6,15 @@ import Foundation
 let args = CommandLine.arguments
 
 if args.count < 2 {
+    let configPath = "\(FileManager.default.currentDirectoryPath)/.switchrc"
+
+    if !FileManager.default.fileExists(atPath: configPath) {
+        print(" ⏺ No .switchrc file found in current directory".red)
+        print("\nTo get started, run:".bold)
+        print("  \("switch init".cyan) - Create a new .switchrc configuration file")
+        exit(1)
+    }
+
     let showCommand = ShowCommand()
     do {
         try showCommand.execute()

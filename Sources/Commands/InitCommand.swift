@@ -54,10 +54,10 @@ class InitCommand {
         // Build config
         var envConfigs: [String: EnvironmentConfig] = [:]
         for env in environments {
-            envConfigs[env] = EnvironmentConfig(files: files)
+            envConfigs[env] = EnvironmentConfig(files: [])
         }
 
-        let config = SwitchConfig(environments: envConfigs)
+        let config = SwitchConfig(environments: envConfigs, currentEnvironment: nil, files: files)
 
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
