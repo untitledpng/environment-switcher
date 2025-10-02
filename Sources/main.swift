@@ -4,26 +4,14 @@ import Foundation
 // No need to wrap in a function or call main()
 
 let args = CommandLine.arguments
-let switcher = EnvironmentSwitcher()
 
 if args.count < 2 {
+    let showCommand = ShowCommand()
     do {
-        try switcher.showCurrentEnvironment()
+        try showCommand.execute()
     } catch {
         print(" ⏺ Failed to detect current environment...".red)
     }
-        print("\nAvailable arugments:".bold)
-        print("""
-        Usage: switch <environment>
-               switch --list
-               switch init
-
-        Examples:
-               switch init
-               switch --list
-               switch production
-               switch development
-        """)
     exit(1)
 }
 
@@ -31,11 +19,17 @@ let command = args[1]
 
 do {
     if command == "--list" || command == "-l" {
-        try switcher.listEnvironments()
+        let listCommand = ListCommand()
+        try listCommand.execute()
+    } else if command == "--help" || command == "-h" {
+        let helpCommand = HelpCommand()
+        helpCommand.execute()
     } else if command == "init" {
-        try switcher.initializeConfig()
+        let initCommand = InitCommand()
+        try initCommand.execute()
     } else {
-        try switcher.switchEnvironment(to: command)
+        let switchCommand = SwitchCommand()
+        try switchCommand.execute(environment: command)
     }
 } catch {
     print("Error: ".red + error.localizedDescription)
