@@ -7,17 +7,23 @@ let args = CommandLine.arguments
 let switcher = EnvironmentSwitcher()
 
 if args.count < 2 {
-    print("""
-    Usage: switch <environment>
-           switch --list
-           switch init
+    do {
+        try switcher.showCurrentEnvironment()
+    } catch {
+        print(" ⏺ Failed to detect current environment...".red)
+    }
+        print("\nAvailable arugments:".bold)
+        print("""
+        Usage: switch <environment>
+               switch --list
+               switch init
 
-    Examples:
-      switch init
-      switch --list
-      switch production
-      switch development
-    """)
+        Examples:
+               switch init
+               switch --list
+               switch production
+               switch development
+        """)
     exit(1)
 }
 
