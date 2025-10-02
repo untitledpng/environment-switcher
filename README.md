@@ -9,6 +9,7 @@ A lightweight CLI tool for seamlessly switching between different environment co
 - 🔒 Automatic backup of existing files
 - 🎯 Support for multiple files per environment
 - 💡 Simple and intuitive CLI
+- 👨‍💻 Interactive init command to create `.switchrc` file and update your .gitignore
 
 ## 📦 Installation
 
