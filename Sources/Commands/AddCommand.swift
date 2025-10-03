@@ -64,6 +64,10 @@ class AddCommand {
         } else if !files.isEmpty {
             print("   Files: \(files.joined(separator: ", ").dim)")
         }
+
+        // Handle environment file creation
+        let filesToCreate = hasDefaultFiles && files.isEmpty ? config.files! : files
+        try handleEnvironmentFileCreation(files: filesToCreate, environment: environmentName)
     }
 
     // MARK: - Private Methods
@@ -118,5 +122,57 @@ class AddCommand {
         }
 
         return files
+    }
+
+    private func handleEnvironmentFileCreation(files: [String], environment: String) throws {
+        print("\nDo you want to create environment-specific files for '\(environment.cyan)'? (y/n, default: \("y".dim))")
+        print("> ".cyan, terminator: "")
+
+        let response = readLine() ?? ""
+        let shouldCreate = response.trimmingCharacters(in: .whitespaces).isEmpty
+            || response.trimmingCharacters(in: .whitespaces).lowercased() == "y"
+
+        guard shouldCreate else {
+            return
+        }
+
+        var createdFiles: [String] = []
+        var skippedFiles: [String] = []
+
+        for file in files {
+            let originalFilePath = "\(currentDir)/\(file)"
+            let originalFileExists = fm.fileExists(atPath: originalFilePath)
+            let envFilePath = "\(currentDir)/\(file).\(environment)"
+
+            if fm.fileExists(atPath: envFilePath) {
+                skippedFiles.append("\(file).\(environment)")
+                continue
+            }
+
+            // Create file with content from original file if it exists, otherwise use a comment
+            let content: String
+            if originalFileExists {
+                content = try String(contentsOf: URL(fileURLWithPath: originalFilePath), encoding: .utf8)
+            } else {
+                content = "# Environment: \(environment)\n# TODO: Add your \(environment) configuration here\n"
+            }
+
+            try content.write(to: URL(fileURLWithPath: envFilePath), atomically: true, encoding: .utf8)
+            createdFiles.append("\(file).\(environment)")
+        }
+
+        if !createdFiles.isEmpty {
+            print("\n ⏺ Created \(createdFiles.count) environment file(s):".green)
+            for file in createdFiles {
+                print("   • \(file.yellow)")
+            }
+        }
+
+        if !skippedFiles.isEmpty {
+            print("\n ⏺ Skipped \(skippedFiles.count) existing file(s):".dim)
+            for file in skippedFiles {
+                print("   • \(file)")
+            }
+        }
     }
 }

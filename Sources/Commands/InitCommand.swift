@@ -173,6 +173,9 @@ class InitCommand {
         var skippedFiles: [String] = []
 
         for file in files {
+            let originalFilePath = "\(currentDir)/\(file)"
+            let originalFileExists = fm.fileExists(atPath: originalFilePath)
+
             for env in environments {
                 let envFilePath = "\(currentDir)/\(file).\(env)"
 
@@ -181,8 +184,14 @@ class InitCommand {
                     continue
                 }
 
-                // Create empty file with a comment
-                let content = "# Environment: \(env)\n# TODO: Add your \(env) configuration here\n"
+                // Create file with content from original file if it exists, otherwise use a comment
+                let content: String
+                if originalFileExists {
+                    content = try String(contentsOf: URL(fileURLWithPath: originalFilePath), encoding: .utf8)
+                } else {
+                    content = "# Environment: \(env)\n# TODO: Add your \(env) configuration here\n"
+                }
+
                 try content.write(to: URL(fileURLWithPath: envFilePath), atomically: true, encoding: .utf8)
                 createdFiles.append("\(file).\(env)")
             }
