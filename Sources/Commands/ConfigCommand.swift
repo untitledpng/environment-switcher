@@ -1,46 +1,37 @@
-import Foundation
+import ArgumentParser
 
-class ConfigCommand {
-    func execute() throws {
-        let configPath = GlobalConfig.globalConfigPath()
-
-        // Check if global config already exists
-        if FileManager.default.fileExists(atPath: configPath) {
-            // Load existing config
-            var config = GlobalConfig.load() ?? GlobalConfig()
-
-            // Check if initDefaults already exist
-            if config.initDefaults != nil {
-                print(" ⏺ Global configuration already exists at:".yellow)
-                print("   \(configPath)")
-                print("\nTo view or edit the configuration, open this file in your editor.".dim)
-                return
-            }
-
-            // Add initDefaults to existing config
-            config.initDefaults = InitDefaults(
-                environments: ["local", "staging", "production"],
-                files: [".env"]
-            )
-            try config.save()
-
-            print(" ⏺ Updated global configuration at:".green)
-            print("   \(configPath)")
-            print("\nAdded initDefaults configuration.".dim)
+struct ConfigCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "config",
+        abstract: "Create your global config file to edit default values."
+    )
+    
+    func run() throws {
+        // TODO: Add --force support to override the existing global config with the default values.
+        if GlobalConfigService.configExists() {
+            printTitle("WARN", BadgeType.warning, "The global config has already been created.")
+            print("\("You can modify the file at".dim) [\(GlobalConfigService.configPath)]\(".".dim)")
+            printLn()
             return
         }
-
-        // Create new global config with defaults
-        let config = GlobalConfig(
-            initDefaults: InitDefaults(
-                environments: ["local", "staging", "production"],
-                files: [".env"]
-            )
-        )
-        try config.save()
-
-        print(" ⏺ Created global configuration at:".green)
-        print("   \(configPath)")
-        print("\nThis file contains application-wide settings for the switch tool.".dim)
+        
+        let globalConfig = GlobalConfigService.shared.config
+        let label = "\("Creating global config file".dim) [\(GlobalConfigService.configPath)]"
+        
+        printTitle("INFO", BadgeType.info, "Creating global config file")
+        printUpdatableDotLine(label: label, value: "RUNNING".bold.dim)
+        
+        do {
+            try globalConfig.save()
+        } catch {
+            printUpdatableDotLine(label: label, value: "FAILED".bold.red, closeLine: true)
+            print("Error: \(error.localizedDescription)")
+            return
+        }
+        
+        printUpdatableDotLine(label: label, value: "DONE".bold.green, closeLine: true)
+        print("Global configuration file created successfully. You can now edit the default values by editing the file mentioned above.")
+        
+        printLn()
     }
 }

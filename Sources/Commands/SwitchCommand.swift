@@ -1,92 +1,85 @@
+import ArgumentParser
 import Foundation
 
-class SwitchCommand {
-    let fm = FileManager.default
-    let currentDir = FileManager.default.currentDirectoryPath
-
-    func execute(environment: String) throws {
-        let config = try loadConfig()
-
-        guard config.environments[environment] != nil else {
-            throw SwitchError.environmentNotFound(environment)
-        }
-
-        let files = config.getFiles(for: environment)
-
-        if files.isEmpty && (config.files == nil || config.files?.isEmpty == true) {
-            throw SwitchError.custom("No files configured for environment '\(environment)'")
-        }
-
-        print("\("Switching to '".bold)\(environment.cyan.bold)\("' environment...".bold)")
-
-        var successCount = 0
-        for filePath in files {
-            if try switchFile(filePath, to: environment) {
-                successCount += 1
-            }
-        }
-
-        if successCount > 0 {
-            try updateConfigWithCurrentEnvironment(environment)
-            print("\n ⏺ Successfully switched to '\(environment.cyan.bold)'".green)
-        } else {
-            print("\n ⏺ No files were switched. Please ensure environment-specific files exist.".red)
-        }
+struct SwitchCommand: ParsableCommand {
+    @Argument(help: "Environment name (local, staging, production)")
+    var environment: String
+    var config: Config
+    
+    static let configuration = CommandConfiguration(
+        commandName: "to",
+        abstract: "Switch to environment",
+        aliases: ["env"]
+    )
+    
+    init() {
+        self.config = ConfigService.shared.config
     }
 
-    // MARK: - Private Methods
-
-    private func loadConfig() throws -> SwitchConfig {
-        let configPath = "\(currentDir)/.switchrc"
-
-        guard fm.fileExists(atPath: configPath) else {
-            throw SwitchError.configNotFound
+    mutating func run() throws {        
+        if self.config.current_environment == environment {
+            printTitle("WARN", BadgeType.warning, "The \(environment) environment is already active.")
+            print("  Use \("switch rollback".cyan) if you want to rollback your changes made in the active environment files.")
+            printLn()
+            return
         }
-
-        let data = try Data(contentsOf: URL(fileURLWithPath: configPath))
-        let decoder = JSONDecoder()
-
+        
+        if self.config.getFiles().isEmpty {
+            printTitle("ERROR", BadgeType.error, "No files configured for this environment.")
+            printLn()
+            return
+        }
+        
+        printTitle("INFO", BadgeType.info, "Switching to the \(environment) environment.")
+        
+        let fileManager = FileManager.default
+        
+        for file in self.config.getFiles() {
+            switchFile(fileManager: fileManager, inputFilePath: file, outputFilePath: "\(file).backup")
+            switchFile(fileManager: fileManager, inputFilePath: getFileEnvironmentPath(file: file, environment: environment), outputFilePath: file)
+        }
+        
+        updateEnvironment(newEnvironment: environment)
+        
+        printLn()
+    }
+    
+    private func switchFile(fileManager: FileManager, inputFilePath: String, outputFilePath: String) {
+        let label = "\("Copying file".dim) [\(inputFilePath)] \("to".dim) [\(outputFilePath)]"
+        printUpdatableDotLine(label: label, value: "RUNNING".bold.dim)
+        
         do {
-            return try decoder.decode(SwitchConfig.self, from: data)
-        } catch {
-            throw SwitchError.invalidConfig
-        }
-    }
-
-    private func updateConfigWithCurrentEnvironment(_ environment: String) throws {
-        let configPath = "\(currentDir)/.switchrc"
-        var config = try loadConfig()
-        config.currentEnvironment = environment
-
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(config)
-        try data.write(to: URL(fileURLWithPath: configPath))
-    }
-
-    private func switchFile(_ filePath: String, to environment: String) throws -> Bool {
-        let fullPath = "\(currentDir)/\(filePath)"
-        let backupPath = "\(fullPath).backup"
-        let envPath = "\(fullPath).\(environment)"
-
-        print(" • Processing \(filePath)...")
-
-        guard fm.fileExists(atPath: envPath) else {
-            print("   ⎿ Skipping '\(filePath.yellow)': \(filePath).\(environment) not found".dim)
-            return false
-        }
-
-        if fm.fileExists(atPath: fullPath) {
-            if fm.fileExists(atPath: backupPath) {
-                try fm.removeItem(atPath: backupPath)
+            guard fileManager.fileExists(atPath: inputFilePath) else {
+                throw FileError.inputFileNotFound
             }
-
-            try fm.moveItem(atPath: fullPath, toPath: backupPath)
-            print("   ⎿ Backed up: \(filePath.dim) → \("\(filePath).backup".dim)")
+            
+            if fileManager.fileExists(atPath: outputFilePath) {
+                try fileManager.removeItem(atPath: outputFilePath)
+            }
+            
+            try fileManager.copyItem(atPath: inputFilePath, toPath: outputFilePath)
+        } catch {
+            printUpdatableDotLine(label: label, value: "FAILED".bold.red, closeLine: true)
+            return
         }
-
-        try fm.copyItem(atPath: envPath, toPath: fullPath)
-        print("     Activated: \("\(filePath).\(environment)".brightCyan) → \(filePath.bold)")
-        return true
+        
+        printUpdatableDotLine(label: label, value: "DONE".bold.green, closeLine: true)
+    }
+    
+    private mutating func updateEnvironment(newEnvironment: String) {
+        let label = "\("Updating configuration file".dim) [.switchrc]"
+        printUpdatableDotLine(label: label, value: "RUNNING".bold.dim)
+        
+        self.config.current_environment = newEnvironment
+        
+        do {
+            try self.config.save()
+        } catch {
+            print("\r\u{001B}[K", terminator: "")
+            printUpdatableDotLine(label: label, value: "FAILED".bold.red, closeLine: true)
+            return
+        }
+        
+        printUpdatableDotLine(label: label, value: "DONE".bold.green, closeLine: true)
     }
 }

@@ -1,55 +1,37 @@
 import Foundation
+import ArgumentParser
 
-// For Swift Package Manager, code at top level is executed automatically
-// No need to wrap in a function or call main()
+let _ = ConfigService.shared
+let _ = GlobalConfigService.shared
 
-let args = CommandLine.arguments
-
-if args.count < 2 {
-    let configPath = "\(FileManager.default.currentDirectoryPath)/.switchrc"
-
-    if !FileManager.default.fileExists(atPath: configPath) {
-        print(" ⏺ No .switchrc file found in current directory".red)
-        print("\nTo get started, run:".bold)
-        print("  \("switch init".cyan) - Create a new .switchrc configuration file")
-        exit(1)
-    }
-
-    let showCommand = ShowCommand()
-    do {
-        try showCommand.execute()
-    } catch {
-        print(" ⏺ Failed to detect current environment...".red)
-    }
-    exit(1)
+struct EnvironmentSwitcher: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "switch",
+        abstract: "A utility for managing files",
+        subcommands: [
+            StatusCommand.self,
+            InitCommand.self,
+            ConfigCommand.self,
+            SwitchCommand.self,
+        ],
+        defaultSubcommand: StatusCommand.self
+    )
 }
 
-let command = args[1]
-
 do {
-    if command == "--list" || command == "-l" {
-        let listCommand = ListCommand()
-        try listCommand.execute()
-    } else if command == "--help" || command == "-h" {
-        let helpCommand = HelpCommand()
-        helpCommand.execute()
-    } else if command == "init" {
-        let initCommand = InitCommand()
-        try initCommand.execute()
-    } else if command == "config" {
-        let configCommand = ConfigCommand()
-        try configCommand.execute()
-    } else if command == "add" {
-        let addCommand = AddCommand()
-        try addCommand.execute()
-    } else if command == "remove" || command == "rm" {
-        let removeCommand = RemoveCommand()
-        try removeCommand.execute()
-    } else {
-        let switchCommand = SwitchCommand()
-        try switchCommand.execute(environment: command)
-    }
+    var command = try EnvironmentSwitcher.parseAsRoot()
+    try command.run()
 } catch {
-    print("Error: ".red + error.localizedDescription)
-    exit(1)
+    let args = Array(CommandLine.arguments.dropFirst())
+    if let environmentName = args.first, !environmentName.starts(with: "-") {
+        if nil != ConfigService.shared.config.environments[environmentName] {
+            var toCommand = SwitchCommand()
+            toCommand.environment = environmentName
+
+            try? toCommand.run()
+            exit(0)
+        }
+    }
+
+    EnvironmentSwitcher.exit(withError: error)
 }
