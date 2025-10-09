@@ -43,6 +43,32 @@ struct RollbackCommand: ParsableCommand {
             return
         }
 
+        // Show what will be rolled back and ask for confirmation
+        printLn()
+        printTitle("WARN", BadgeType.warning, "The following files will be restored from backup:")
+        for file in backupFiles {
+            print("    \(file)".yellow)
+        }
+
+        printLn()
+        print("  This will \("overwrite".bold.red) the current content of these files with their backup versions.")
+        print("  Any changes you made since the last environment switch will be \("lost".bold.red).")
+        printLn()
+
+        print("  Do you want to continue? (y/n, default: \("n".dim))")
+        print("  > ".cyan, terminator: "")
+
+        let response = readLine() ?? ""
+        let shouldContinue = response.trimmingCharacters(in: .whitespaces).lowercased() == "y"
+
+        guard shouldContinue else {
+            printLn()
+            printTitle("INFO", BadgeType.info, "Rollback cancelled.")
+            printLn()
+            return
+        }
+
+        printLn()
         printTitle("INFO", BadgeType.info, "Rolling back changes to environment files.")
 
         var rolledBackFiles: [String] = []
