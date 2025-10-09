@@ -10,6 +10,7 @@ struct EnvironmentSwitcher: ParsableCommand {
             InitCommand.self,
             ConfigCommand.self,
             SwitchCommand.self,
+            RollbackCommand.self,
         ]
     )
 }

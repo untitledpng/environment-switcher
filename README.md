@@ -77,6 +77,7 @@ switch status             # View current environment and file states
 switch config             # Create/update global configuration
 switch to <env>           # Switch to specified environment
 switch <env>              # Shorthand for switching (e.g., switch production)
+switch rollback           # Restore files from backup (undo changes to active files)
 switch --help             # Show help information
 ```
 
@@ -89,6 +90,27 @@ The `status` command (or just `switch` without arguments) displays:
   - Normal (dim) - File matches the environment version
   - Modified (yellow) - File has been changed since switching
   - Not found (red) - Expected file is missing
+
+### Rollback Command
+
+The `rollback` command restores your environment files from their backup copies:
+- Reverts any changes made to active files after switching environments
+- Restores files from `.backup` versions created during environment switches
+- Shows detailed feedback about which files were rolled back
+- Useful when you've made unwanted changes to environment files
+
+**Example usage:**
+```bash
+# Switch to production
+switch production
+
+# Make changes to .env
+echo "DEBUG=true" >> .env
+
+# Oops! Rollback the changes
+switch rollback
+# .env is now restored to its state from before the modifications
+```
 
 ## ⚙️ Configuration
 
@@ -220,9 +242,27 @@ switch init
 # Uses team's standard environments and files
 ```
 
+### Rollback After Mistakes
+```bash
+# Switch to production environment
+switch production
+
+# Accidentally modify the active .env file
+echo "FEATURE_FLAG=true" >> .env
+
+# Check status - file shows as modified
+switch status
+
+# Rollback to restore the original production config
+switch rollback
+
+# File is now back to its original state
+```
+
 ## 🛡️ Safety Features
 
 - **Automatic backups**: Original files are backed up before switching
+- **Rollback capability**: Restore files from backup if you make mistakes
 - **File existence checks**: Warns if environment-specific files are missing
 - **Current environment tracking**: Prevents redundant switches to the same environment
 - **Status visualization**: Color-coded file states help identify issues
@@ -270,6 +310,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Run `switch status` to see available environments
 - Check your `.switchrc` file for the correct environment name
 - Environment names are case-sensitive
+
+### Rollback not working?
+- Backup files are created when you switch environments
+- If you haven't switched yet, there won't be any `.backup` files
+- Check if `.backup` files exist in your project directory
+- Rollback only restores files that have backup copies
 
 ### Permission errors?
 - Ensure you have write permissions in the project directory
