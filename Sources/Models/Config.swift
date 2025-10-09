@@ -1,4 +1,5 @@
 import Foundation
+
 struct Config: Codable {
     var current_environment: String
     var environments: [String: Environment]

@@ -1,9 +1,6 @@
 import Foundation
 import ArgumentParser
 
-let _ = ConfigService.shared
-let _ = GlobalConfigService.shared
-
 struct EnvironmentSwitcher: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "switch",
@@ -13,8 +10,7 @@ struct EnvironmentSwitcher: ParsableCommand {
             InitCommand.self,
             ConfigCommand.self,
             SwitchCommand.self,
-        ],
-        defaultSubcommand: StatusCommand.self
+        ]
     )
 }
 
@@ -23,6 +19,7 @@ do {
     try command.run()
 } catch {
     let args = Array(CommandLine.arguments.dropFirst())
+    
     if let environmentName = args.first, !environmentName.starts(with: "-") {
         if nil != ConfigService.shared.config.environments[environmentName] {
             var toCommand = SwitchCommand()
@@ -31,6 +28,11 @@ do {
             try? toCommand.run()
             exit(0)
         }
+    }
+    
+    if args.isEmpty {
+        try StatusCommand().run()
+        exit(0)
     }
 
     EnvironmentSwitcher.exit(withError: error)
