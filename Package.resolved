@@ -1,0 +1,25 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "Rainbow",
+        "repositoryURL": "https://github.com/onevcat/Rainbow",
+        "state": {
+          "branch": null,
+          "revision": "16da5c62dd737258c6df2e8c430f8a3202f655a7",
+          "version": "4.2.0"
+        }
+      },
+      {
+        "package": "swift-argument-parser",
+        "repositoryURL": "https://github.com/apple/swift-argument-parser",
+        "state": {
+          "branch": null,
+          "revision": "309a47b2b1d9b5e991f36961c983ecec72275be3",
+          "version": "1.6.1"
+        }
+      }
+    ]
+  },
+  "version": 1
+}
