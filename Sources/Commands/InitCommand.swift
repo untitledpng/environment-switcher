@@ -38,7 +38,7 @@ struct InitCommand: ParsableCommand {
 
         try askGitIgnore(files: files)
         try askFileCreation(files: files, environments: environments)
-        
+
         printLn()
     }
 
@@ -133,7 +133,7 @@ struct InitCommand: ParsableCommand {
             if !gitignoreContent.contains(file) {
                 entriesToAdd.append(file)
             }
-            
+
             let pattern = "\(file).*"
             if !gitignoreContent.contains(pattern) {
                 entriesToAdd.append(pattern)
@@ -160,10 +160,10 @@ struct InitCommand: ParsableCommand {
 
         try gitignoreContent.write(to: URL(fileURLWithPath: gitignorePath), atomically: true, encoding: .utf8)
 
-        let action = gitignoreExists ? "Updated" : "Created"
+        let action = gitignoreExists ? "Updated the .gitignore file" : "Created the .gitignore file"
 
-        printTitle("DONE", BadgeType.success, "Entries added to the .gitignore")
-        
+        printTitle("DONE", BadgeType.success, action)
+
         for file in entriesToAdd {
             print("    \(file)".dim)
         }
@@ -188,7 +188,7 @@ struct InitCommand: ParsableCommand {
         for file in files {
             let originalFilePath = file
             let originalFileExists = FileManager.default.fileExists(atPath: originalFilePath)
-            
+
             if !originalFileExists {
                 try "# TODO: Add your configuration here".write(to: URL(fileURLWithPath: originalFilePath), atomically: true, encoding: .utf8)
                 createdFiles.append(originalFilePath)
