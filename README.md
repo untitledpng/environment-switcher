@@ -77,6 +77,7 @@ switch status             # View current environment and file states
 switch config             # Create/update global configuration
 switch to <env>           # Switch to specified environment
 switch <env>              # Shorthand for switching (e.g., switch production)
+switch save               # Save modified files to current environment-specific files
 switch rollback           # Restore files from backup (undo changes to active files)
 switch --help             # Show help information
 ```
@@ -90,6 +91,31 @@ The `status` command (or just `switch` without arguments) displays:
   - Normal (dim) - File matches the environment version
   - Modified (yellow) - File has been changed since switching
   - Not found (red) - Expected file is missing
+
+### Save Command
+
+The `save` command persists your changes back to the current environment-specific files:
+- Saves modifications from active files (e.g., `.env`) to environment files (e.g., `.env.staging`)
+- Only saves files that have been modified (detected via SHA-256 hash comparison)
+- Shows which files were saved, skipped, or failed
+- Useful for updating environment configurations after making changes
+
+**Example usage:**
+```bash
+# Switch to staging
+switch staging
+
+# Make changes to .env
+echo "DEBUG=true" >> .env
+echo "LOG_LEVEL=verbose" >> .env
+
+# Check status - file shows as modified
+switch status
+
+# Save changes back to .env.staging
+switch save
+# .env.staging now contains your changes
+```
 
 ### Rollback Command
 
@@ -259,9 +285,28 @@ switch rollback
 # File is now back to its original state
 ```
 
+### Iterative Development Workflow
+```bash
+# Switch to development environment
+switch dev
+
+# Make changes to configuration
+echo "API_ENDPOINT=http://localhost:3000" >> .env
+echo "DEBUG_MODE=true" >> .env
+
+# Test your changes
+npm start
+
+# Changes work! Save them to the dev environment
+switch save
+
+# Now .env.dev has your updates, and they're persistent
+```
+
 ## 🛡️ Safety Features
 
 - **Automatic backups**: Original files are backed up before switching
+- **Save capability**: Persist your changes back to environment-specific files
 - **Rollback capability**: Restore files from backup if you make mistakes
 - **File existence checks**: Warns if environment-specific files are missing
 - **Current environment tracking**: Prevents redundant switches to the same environment
@@ -293,6 +338,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 💡 Tips
 
 - Use `switch` without arguments to quickly check your current environment
+- Use `switch save` after making changes to persist them to the current environment
 - The `.switchrc` file should be committed to version control
 - Environment-specific files (`.env.local`, etc.) should be in `.gitignore`
 - Base files (`.env`) should also be in `.gitignore` if they contain sensitive data
@@ -310,6 +356,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Run `switch status` to see available environments
 - Check your `.switchrc` file for the correct environment name
 - Environment names are case-sensitive
+
+### Save says no modified files?
+- Run `switch status` to check if files are actually modified
+- The save command uses SHA-256 hashing to detect changes
+- If the file content matches the environment file, it won't be saved
+- Make sure you've actually changed the active file, not the environment-specific file
 
 ### Rollback not working?
 - Backup files are created when you switch environments

@@ -11,6 +11,7 @@ struct EnvironmentSwitcher: ParsableCommand {
             ConfigCommand.self,
             SwitchCommand.self,
             RollbackCommand.self,
+            SaveCommand.self,
         ]
     )
 }
