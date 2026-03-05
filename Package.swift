@@ -22,6 +22,12 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "Rainbow", package: "Rainbow")
             ],
-            path: "Sources")
+            path: "Sources"
+        ),
+        .testTarget(
+            name: "EnvironmentSwitcherTests",
+            dependencies: ["EnvironmentSwitcher"],
+            path: "Tests"
+        )
     ]
 )

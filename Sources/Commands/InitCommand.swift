@@ -3,6 +3,14 @@ import ArgumentParser
 
 struct InitCommand: ParsableCommand {
     let globalConfig: GlobalConfig
+    
+    private struct ExtendConfiguration {
+        let mode: String?
+        let extendEnabled: Bool?
+        let whitelist: [String]?
+        let fileModes: [String: String]
+    }
+
     static let configuration = CommandConfiguration(
         commandName: "init",
         abstract: "Initialize a new project by creating the .switchrc file."
@@ -24,10 +32,15 @@ struct InitCommand: ParsableCommand {
 
         let environments = try askEnvironments()
         let files = try askFiles()
+        let extendConfiguration = try askExtendConfiguration(files: files)
         let config = Config(
             current_environment: environments.first!,
             environments: generateEnvironmentModels(environments: environments),
-            default_files: files
+            default_files: files,
+            mode: extendConfiguration.mode,
+            extend_enabled: extendConfiguration.extendEnabled,
+            extend_whitelist: extendConfiguration.whitelist,
+            file_modes: extendConfiguration.fileModes.isEmpty ? nil : extendConfiguration.fileModes
         )
 
         try config.save()
@@ -37,7 +50,7 @@ struct InitCommand: ParsableCommand {
         print("  Files to switch: \(files.map { $0.yellow }.joined(separator: ", "))\n")
 
         try askGitIgnore(files: files)
-        try askFileCreation(files: files, environments: environments)
+        try askFileCreation(files: files, environments: environments, config: config)
 
         printLn()
     }
@@ -96,6 +109,104 @@ struct InitCommand: ParsableCommand {
         }
 
         return files
+    }
+
+    private func askExtendConfiguration(files: [String]) throws -> ExtendConfiguration {
+        printLn()
+        print("  Do you want to configure extend mode for this project? (y/n, default: \("n".dim))")
+        print("  > ".cyan, terminator: "")
+
+        let response = readLine() ?? ""
+        let shouldConfigure = response.trimmingCharacters(in: .whitespaces).lowercased() == "y"
+
+        guard shouldConfigure else {
+            return ExtendConfiguration(mode: nil, extendEnabled: nil, whitelist: nil, fileModes: [:])
+        }
+
+        printTitle("WARN", BadgeType.warning, "ALPHA: Extend mode is experimental and may be buggy.")
+        print("  Use with caution in production projects.")
+
+        let globalMode = self.globalConfig.mode
+        printLn()
+        print("  Project mode override? (\("replace".dim)/\("extend".dim), default: use global \(globalMode.dim))")
+        print("  > ".cyan, terminator: "")
+        let modeInput = (readLine() ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let mode: String?
+        if modeInput == "replace" || modeInput == "extend" {
+            mode = modeInput
+        } else {
+            mode = nil
+        }
+
+        printLn()
+        print("  Override extend enabled for this project? (y/n, default: use global \((self.globalConfig.extend_enabled ? "y" : "n").dim))")
+        print("  > ".cyan, terminator: "")
+        let enabledInput = (readLine() ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let extendEnabled: Bool?
+        if enabledInput == "y" {
+            extendEnabled = true
+        } else if enabledInput == "n" {
+            extendEnabled = false
+        } else {
+            extendEnabled = nil
+        }
+
+        printLn()
+        print("  Project extend whitelist override? (comma-separated, default: use global \(self.globalConfig.extend_whitelist.joined(separator: ",").dim))")
+        print("  > ".cyan, terminator: "")
+        let whitelistInput = (readLine() ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let whitelist: [String]?
+        if whitelistInput.isEmpty {
+            whitelist = nil
+        } else {
+            let parsed = whitelistInput
+                .split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            whitelist = parsed
+        }
+
+        printLn()
+        print("  Files that should always use extend in this project? (comma-separated from selected files, default: none)")
+        print("  > ".cyan, terminator: "")
+        let extendFilesInput = (readLine() ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let extendFiles = parseSelectedFiles(input: extendFilesInput, allowedFiles: files)
+
+        printLn()
+        print("  Files that should always use replace in this project? (comma-separated from selected files, default: none)")
+        print("  > ".cyan, terminator: "")
+        let replaceFilesInput = (readLine() ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let replaceFiles = parseSelectedFiles(input: replaceFilesInput, allowedFiles: files)
+
+        var fileModes: [String: String] = [:]
+        for file in extendFiles {
+            fileModes[file] = "extend"
+        }
+
+        for file in replaceFiles {
+            fileModes[file] = "replace"
+        }
+
+        return ExtendConfiguration(
+            mode: mode,
+            extendEnabled: extendEnabled,
+            whitelist: whitelist,
+            fileModes: fileModes
+        )
+    }
+
+    private func parseSelectedFiles(input: String, allowedFiles: [String]) -> [String] {
+        if input.isEmpty {
+            return []
+        }
+
+        let selected = input
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        let allowed = Set(allowedFiles)
+        return selected.filter { allowed.contains($0) }
     }
 
     private func askGitIgnore(files: [String]) throws {
@@ -169,7 +280,7 @@ struct InitCommand: ParsableCommand {
         }
     }
 
-    private func askFileCreation(files: [String], environments: [String]) throws {
+    private func askFileCreation(files: [String], environments: [String], config: Config) throws {
         printLn()
         print("  Do you want to create all environment-specific files? (y/n, default: \("y".dim))")
         print("  > ".cyan, terminator: "")
@@ -192,6 +303,17 @@ struct InitCommand: ParsableCommand {
             if !originalFileExists {
                 try "# TODO: Add your configuration here".write(to: URL(fileURLWithPath: originalFilePath), atomically: true, encoding: .utf8)
                 createdFiles.append(originalFilePath)
+            }
+
+            if shouldCreateDefaultFile(file: file, config: config) {
+                let defaultFilePath = "\(file).default"
+                if !FileManager.default.fileExists(atPath: defaultFilePath) {
+                    let content = try String(contentsOf: URL(fileURLWithPath: originalFilePath), encoding: .utf8)
+                    try content.write(to: URL(fileURLWithPath: defaultFilePath), atomically: true, encoding: .utf8)
+                    createdFiles.append(defaultFilePath)
+                } else {
+                    skippedFiles.append(defaultFilePath)
+                }
             }
 
             for env in environments {
@@ -227,5 +349,15 @@ struct InitCommand: ParsableCommand {
                 print("    \(file)".dim)
             }
         }
+    }
+
+    private func shouldCreateDefaultFile(file: String, config: Config) -> Bool {
+        let mode = resolveFileSwitchMode(file: file, config: config, globalConfig: self.globalConfig)
+        let extendEnabled = config.isExtendEnabled(globalConfig: self.globalConfig)
+        let whitelist = config.effectiveExtendWhitelist(globalConfig: self.globalConfig)
+        let isWhitelisted = isFileWhitelistedForExtend(file: file, whitelist: whitelist)
+        let hasHandler = resolveExtendHandler(file: file) != nil
+
+        return mode == .extend && extendEnabled && isWhitelisted && hasHandler
     }
 }

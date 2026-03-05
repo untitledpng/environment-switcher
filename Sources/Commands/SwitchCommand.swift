@@ -5,6 +5,7 @@ struct SwitchCommand: ParsableCommand {
     @Argument(help: "Environment name (local, staging, production)")
     var environment: String
     var config: Config
+    var globalConfig: GlobalConfig
     
     static let configuration = CommandConfiguration(
         commandName: "to",
@@ -14,6 +15,7 @@ struct SwitchCommand: ParsableCommand {
     
     init() {
         self.config = ConfigService.shared.config
+        self.globalConfig = GlobalConfigService.shared.config
     }
 
     mutating func run() throws {        
@@ -31,12 +33,16 @@ struct SwitchCommand: ParsableCommand {
         }
         
         printTitle("INFO", BadgeType.info, "Switching to the \(environment) environment.")
+
+        if shouldShowExtendAlphaWarning() {
+            printTitle("WARN", BadgeType.warning, "ALPHA: Extend mode is experimental and may produce invalid files in edge cases.")
+        }
         
         let fileManager = FileManager.default
         
         for file in self.config.getFiles() {
-            switchFile(fileManager: fileManager, inputFilePath: file, outputFilePath: "\(file).backup")
-            switchFile(fileManager: fileManager, inputFilePath: getFileEnvironmentPath(file: file, environment: environment), outputFilePath: file)
+            switchFile(fileManager: fileManager, inputFilePath: file, outputFilePath: "\(file).backup", operation: "backup")
+            switchFileWithMode(fileManager: fileManager, file: file)
         }
         
         updateEnvironment(newEnvironment: environment)
@@ -44,8 +50,8 @@ struct SwitchCommand: ParsableCommand {
         printLn()
     }
     
-    private func switchFile(fileManager: FileManager, inputFilePath: String, outputFilePath: String) {
-        let label = "\("Copying file".dim) [\(inputFilePath)] \("to".dim) [\(outputFilePath)]"
+    private func switchFile(fileManager: FileManager, inputFilePath: String, outputFilePath: String, operation: String) {
+        let label = "\("Copying file (\(operation))".dim) [\(inputFilePath)] \("to".dim) [\(outputFilePath)]"
         printUpdatableDotLine(label: label, value: "RUNNING".bold.dim)
         
         do {
@@ -65,6 +71,28 @@ struct SwitchCommand: ParsableCommand {
         
         printUpdatableDotLine(label: label, value: "DONE".bold.green, closeLine: true)
     }
+
+    private func switchFileWithMode(fileManager: FileManager, file: String) {
+        let mode = resolveFileSwitchMode(file: file, config: self.config, globalConfig: self.globalConfig)
+        let sourcePath = getFileEnvironmentPath(file: file, environment: environment)
+        let label = "\("Applying \(mode.rawValue) strategy".dim) [\(sourcePath)] \("to".dim) [\(file)]"
+        printUpdatableDotLine(label: label, value: "RUNNING".bold.dim)
+
+        do {
+            _ = try applySwitchForFile(
+                fileManager: fileManager,
+                file: file,
+                environment: environment,
+                config: self.config,
+                globalConfig: self.globalConfig
+            )
+        } catch {
+            printUpdatableDotLine(label: label, value: "FAILED".bold.red, closeLine: true)
+            return
+        }
+
+        printUpdatableDotLine(label: label, value: "DONE".bold.green, closeLine: true)
+    }
     
     private mutating func updateEnvironment(newEnvironment: String) {
         let label = "\("Updating configuration file".dim) [.switchrc]"
@@ -81,5 +109,19 @@ struct SwitchCommand: ParsableCommand {
         }
         
         printUpdatableDotLine(label: label, value: "DONE".bold.green, closeLine: true)
+    }
+
+    private func shouldShowExtendAlphaWarning() -> Bool {
+        for file in self.config.getFiles() {
+            let mode = resolveFileSwitchMode(file: file, config: self.config, globalConfig: self.globalConfig)
+            let isWhitelisted = isFileWhitelistedForExtend(file: file, whitelist: self.config.effectiveExtendWhitelist(globalConfig: self.globalConfig))
+            let hasHandler = resolveExtendHandler(file: file) != nil
+
+            if mode == .extend && self.config.isExtendEnabled(globalConfig: self.globalConfig) && isWhitelisted && hasHandler {
+                return true
+            }
+        }
+
+        return false
     }
 }

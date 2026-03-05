@@ -31,6 +31,7 @@ struct ConfigCommand: ParsableCommand {
         
         printUpdatableDotLine(label: label, value: "DONE".bold.green, closeLine: true)
         print("Global configuration file created successfully. You can now edit the default values by editing the file mentioned above.")
+        print("Extend mode is \("ALPHA".bold.yellow) and may be buggy. Enable it carefully.")
         
         printLn()
     }
