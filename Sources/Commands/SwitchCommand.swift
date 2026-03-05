@@ -46,6 +46,7 @@ struct SwitchCommand: ParsableCommand {
         }
         
         updateEnvironment(newEnvironment: environment)
+        runPostSwitchCommands()
         
         printLn()
     }
@@ -109,6 +110,39 @@ struct SwitchCommand: ParsableCommand {
         }
         
         printUpdatableDotLine(label: label, value: "DONE".bold.green, closeLine: true)
+    }
+
+    private func runPostSwitchCommands() {
+        guard let commands = self.config.environments[environment]?.post_switch, !commands.isEmpty else {
+            return
+        }
+
+        printTitle("INFO", BadgeType.info, "Running post-switch commands")
+
+        for command in commands {
+            let label = "\("Executing".dim) [\(command)]"
+            printUpdatableDotLine(label: label, value: "RUNNING".bold.dim)
+
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/bin/sh")
+            process.arguments = ["-c", command]
+            process.currentDirectoryURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+
+            do {
+                try process.run()
+                process.waitUntilExit()
+
+                if process.terminationStatus != 0 {
+                    printUpdatableDotLine(label: label, value: "FAILED".bold.red, closeLine: true)
+                    continue
+                }
+            } catch {
+                printUpdatableDotLine(label: label, value: "FAILED".bold.red, closeLine: true)
+                continue
+            }
+
+            printUpdatableDotLine(label: label, value: "DONE".bold.green, closeLine: true)
+        }
     }
 
     private func shouldShowExtendAlphaWarning() -> Bool {
