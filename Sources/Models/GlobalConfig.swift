@@ -7,6 +7,7 @@ struct GlobalConfig: Codable {
     var extend_enabled: Bool = false
     var extend_whitelist: [String] = []
     var file_modes: [String: String] = [:]
+    var post_switch: [String] = []
 
     enum CodingKeys: String, CodingKey {
         case default_environments
@@ -15,6 +16,7 @@ struct GlobalConfig: Codable {
         case extend_enabled
         case extend_whitelist
         case file_modes
+        case post_switch
     }
 
     init() {}
@@ -27,6 +29,7 @@ struct GlobalConfig: Codable {
         self.extend_enabled = try container.decodeIfPresent(Bool.self, forKey: .extend_enabled) ?? false
         self.extend_whitelist = try container.decodeIfPresent([String].self, forKey: .extend_whitelist) ?? []
         self.file_modes = try container.decodeIfPresent([String: String].self, forKey: .file_modes) ?? [:]
+        self.post_switch = try container.decodeIfPresent([String].self, forKey: .post_switch) ?? []
     }
     
     func save() throws {

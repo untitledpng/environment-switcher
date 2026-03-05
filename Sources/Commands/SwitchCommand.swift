@@ -113,12 +113,27 @@ struct SwitchCommand: ParsableCommand {
     }
 
     private func runPostSwitchCommands() {
-        guard let commands = self.config.environments[environment]?.post_switch, !commands.isEmpty else {
-            return
+        let globalCommands = self.globalConfig.post_switch
+        let projectCommands = self.config.post_switch ?? []
+        let environmentCommands = self.config.environments[environment]?.post_switch ?? []
+
+        if !globalCommands.isEmpty {
+            printTitle("INFO", BadgeType.info, "Running global post-switch commands")
+            executeCommands(globalCommands)
         }
 
-        printTitle("INFO", BadgeType.info, "Running post-switch commands")
+        if !projectCommands.isEmpty {
+            printTitle("INFO", BadgeType.info, "Running project post-switch commands")
+            executeCommands(projectCommands)
+        }
 
+        if !environmentCommands.isEmpty {
+            printTitle("INFO", BadgeType.info, "Running environment post-switch commands")
+            executeCommands(environmentCommands)
+        }
+    }
+
+    private func executeCommands(_ commands: [String]) {
         for command in commands {
             let label = "\("Executing".dim) [\(command)]"
             printUpdatableDotLine(label: label, value: "RUNNING".bold.dim)

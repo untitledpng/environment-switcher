@@ -2,27 +2,80 @@
 
 ## Overview
 
-Post-switch commands allow you to automatically run scripts or commands after switching environments. Each environment can define its own set of commands, making it easy to trigger environment-specific setup tasks like clearing caches, restarting services, or running migrations.
+Post-switch commands allow you to automatically run scripts or commands after switching environments. Commands can be defined at three levels -- global user config, project root, and per-environment -- giving you fine-grained control over what runs and when.
+
+## Execution Order
+
+When a switch completes, post-switch commands are collected and executed in this order:
+
+1. **Global config** (`~/.config/switch/.switchrc`) -- runs first, applies to every project
+2. **Project root** (`.switchrc` top-level `post_switch`) -- runs second, applies to every environment in the project
+3. **Environment-level** (`.switchrc` per-environment `post_switch`) -- runs last, only for the target environment
+
+Each level is independent. If a level has no commands, it is silently skipped.
 
 ## Configuration
 
-Add a `post_switch` array to any environment in your project `.switchrc`. Each entry is a command string that will be executed via `/bin/sh` in the project directory.
+### Global config (`~/.config/switch/.switchrc`)
+
+Add a `post_switch` array to your global config. These commands run after every switch in every project.
+
+```json
+{
+  "default_environments": ["local", "staging", "production"],
+  "default_files": [".env"],
+  "post_switch": [
+    "/usr/local/bin/notify-switch"
+  ]
+}
+```
+
+### Project root (`.switchrc`)
+
+Add a top-level `post_switch` array alongside `environments` and `default_files`. These commands run after every switch within this project, regardless of the target environment.
 
 ```json
 {
   "current_environment": "local",
   "default_files": [".env"],
+  "post_switch": [
+    "/usr/local/bin/clear-cache"
+  ],
+  "environments": {
+    "local": {
+      "files": []
+    },
+    "staging": {
+      "files": []
+    },
+    "production": {
+      "files": []
+    }
+  }
+}
+```
+
+### Environment-level (`.switchrc` per-environment)
+
+Add a `post_switch` array inside a specific environment. These commands only run when switching to that particular environment.
+
+```json
+{
+  "current_environment": "local",
+  "default_files": [".env"],
+  "post_switch": [
+    "/usr/local/bin/clear-cache"
+  ],
   "environments": {
     "local": {
       "files": [],
       "post_switch": [
-        "/usr/local/bin/clear-cache"
+        "/usr/local/bin/seed-database"
       ]
     },
     "staging": {
       "files": [],
       "post_switch": [
-        "/usr/local/bin/clear-cache",
         "/usr/local/bin/sync-assets --env staging"
       ]
     },
@@ -33,18 +86,20 @@ Add a `post_switch` array to any environment in your project `.switchrc`. Each e
 }
 ```
 
-In this example:
-- Switching to **local** runs one command
-- Switching to **staging** runs two commands sequentially
-- Switching to **production** runs no post-switch commands (the key is omitted)
+In this example, switching to **staging** would run:
+1. `/usr/local/bin/clear-cache` (project root)
+2. `/usr/local/bin/sync-assets --env staging` (environment-level)
 
 ## How It Works
 
 1. The environment switch completes normally (backup, file copy, config update)
-2. If the target environment has a `post_switch` array with at least one entry, an **INFO** banner is printed
-3. Each command is executed sequentially using `/bin/sh -c "<command>"` in the current working directory
-4. A status line is printed per command showing **RUNNING**, **DONE**, or **FAILED**
-5. If a command fails (non-zero exit code or launch error), it is marked as **FAILED** and the next command runs -- the sequence is not aborted
+2. Global config `post_switch` commands are executed first (if any)
+3. Project root `post_switch` commands are executed next (if any)
+4. Environment-level `post_switch` commands are executed last (if any)
+5. Each group prints its own **INFO** banner before executing
+6. Each command is executed sequentially using `/bin/sh -c "<command>"` in the current working directory
+7. A status line is printed per command showing **RUNNING**, **DONE**, or **FAILED**
+8. If a command fails (non-zero exit code or launch error), it is marked as **FAILED** and the next command runs -- the sequence is not aborted
 
 ## Examples
 
@@ -77,7 +132,7 @@ Commands are passed to `/bin/sh -c`, so shell features like pipes and chaining w
 
 ## Output
 
-When post-switch commands are configured, the output during a switch looks like this:
+When post-switch commands are configured at multiple levels, the output during a switch looks like this:
 
 ```
  INFO  Switching to the staging environment.
@@ -86,17 +141,24 @@ When post-switch commands are configured, the output during a switch looks like 
   Applying replace strategy [.env.staging] to [.env] ............... DONE
   Updating configuration file [.switchrc] .......................... DONE
 
- INFO  Running post-switch commands
+ INFO  Running global post-switch commands
+
+  Executing [/usr/local/bin/notify-switch] ......................... DONE
+
+ INFO  Running project post-switch commands
 
   Executing [/usr/local/bin/clear-cache] ........................... DONE
+
+ INFO  Running environment post-switch commands
+
   Executing [/usr/local/bin/sync-assets --env staging] ............. DONE
 ```
 
-If no `post_switch` is defined for the target environment, this section is silently skipped.
+If no `post_switch` is defined at any level, all sections are silently skipped.
 
 ## Notes
 
 - Commands run in the current working directory (the project root where `.switchrc` lives).
 - Use full paths for executables to avoid `PATH` resolution issues.
-- `post_switch` is optional -- environments without it behave exactly as before.
+- `post_switch` is optional at every level -- omitting it has no effect.
 - Existing `.switchrc` files without `post_switch` are fully backwards-compatible; no changes are needed.

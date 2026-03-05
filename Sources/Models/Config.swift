@@ -8,6 +8,7 @@ struct Config: Codable {
     var extend_enabled: Bool? = nil
     var extend_whitelist: [String]? = nil
     var file_modes: [String: String]? = nil
+    var post_switch: [String]? = nil
     
     func getCurrentEnvironmentModel(fresh: Bool = false) -> Environment {
         var invalidated = false;
